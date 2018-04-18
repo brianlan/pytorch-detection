@@ -1,4 +1,4 @@
-from mxnet import gluon, image, nd, autograd, metric, init, gpu, cpu
+from mxnet import gluon, nd
 from mxnet.contrib.ndarray import MultiBoxPrior
 from mxnet.gluon import nn
 
