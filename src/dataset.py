@@ -1,29 +1,83 @@
-from mxnet import image
-from mxnet.contrib.ndarray import MultiBoxPrior, MultiBoxTarget
+from pathlib import Path
+
+import numpy as np
+from mxnet import gluon, image, nd
 
 
-def get_iterators(data_dir, data_shape, batch_size):
-    class_names = ['pikachu']
-    num_class = len(class_names)
-    train_iter = image.ImageDetIter(
-        batch_size=batch_size,
-        data_shape=(3, data_shape, data_shape),
-        path_imgrec=data_dir+'train.rec',
-        path_imgidx=data_dir+'train.idx',
-        shuffle=True,
-        mean=True,
-        rand_crop=1,
-        min_object_covered=0.95,
-        max_attempts=200)
-    val_iter = image.ImageDetIter(
-        batch_size=batch_size,
-        data_shape=(3, data_shape, data_shape),
-        path_imgrec=data_dir+'val.rec',
-        shuffle=False,
-        mean=True)
-    return train_iter, val_iter, class_names, num_class
+class ImageReader(object):
+    def __call__(self, path):
+        return image.imread(path)
 
 
-def training_targets(anchors, class_preds, labels):
-    class_preds = class_preds.transpose(axes=(0,2,1))
-    return MultiBoxTarget(anchors, labels, class_preds)
+class TianchiOCRLabelReader(object):
+    def __call__(self, path):
+        with open(path, 'rb') as f:
+            label = np.array([l.strip().decode('utf-8').split(',') for l in f.readlines()])
+        return np.array(label[:, :-1], dtype=np.float_), np.array(label[:, -1])
+
+
+class DetectionDataPathIter(object):
+    def __init__(self, im_dir, im_suffix, label_dir, label_suffix, indices=None):
+        self.im_dir, self.label_dir = Path(str(im_dir)), Path(str(label_dir))
+        self.im_suffix, self.label_suffix = '.' + im_suffix.strip('.'), '.' + label_suffix.strip('.')
+        self.indices = indices or [p.relative_to(self.label_dir).stem for p in self.label_dir.glob('**/*' + self.label_suffix)]
+
+    def __len__(self):
+        return len(self.indices)
+
+    def __getitem__(self, idx):
+        return str(self.im_dir / self.indices[idx]) + self.im_suffix, \
+                str(self.label_dir / self.indices[idx]) + self.label_suffix
+
+
+class DetectionDataset(gluon.data.Dataset):
+    @property
+    def data_path_iter(self):
+        raise NotImplementedError
+    
+    @property
+    def im_read(self):
+        raise NotImplementedError
+    
+    @property
+    def label_read(self):
+        raise NotImplementedError
+
+    def __getitem__(self, idx):
+        im_path, label_path = self.data_path_iter[idx]
+        return self.im_read(im_path), self.label_read(label_path)
+
+    def __len__(self):
+        return len(self.data_path_iter)
+
+
+class TianchiOCRDataset(DetectionDataset):
+    def __init__(self, im_dir, label_dir, indices=None):
+        super().__init__()
+        self._data_path_iter = DetectionDataPathIter(im_dir, '.jpg', label_dir, '.txt', indices=indices)
+        self._im_reader = ImageReader()
+        self._label_reader = TianchiOCRLabelReader()
+    
+    @property
+    def data_path_iter(self):
+        return self._data_path_iter
+    
+    @property
+    def im_read(self):
+        return self._im_reader
+    
+    @property
+    def label_read(self):
+        return self._label_reader
+
+
+class TianchiOCRDataLoader(gluon.data.DataLoader):
+    def __init__(self, dataset, shuffle=False, num_workers=0):
+        super().__init__(dataset, batch_size=1, shuffle=shuffle, num_workers=num_workers)
+
+    def __iter__(self):
+        if self._num_workers == 0:
+            for idx in self._batch_sampler:
+                im, label = self._dataset[idx[0]]  # batch_size is fixed to be 1, so we can directly use idx[0].
+                yield im, (nd.array(label[0], dtype=np.float32), label[1])
+            return
