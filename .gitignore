@@ -103,3 +103,4 @@ ENV/
 # my ignore list
 data
 .idea
+log

@@ -1,18 +1,30 @@
 from pathlib import Path
 
+import cv2
 import numpy as np
 from mxnet import gluon, image, nd
+
+from .logger import logger
+
+
+class ImageReadingError(Exception):
+    pass
 
 
 class ImageReader(object):
     def __call__(self, path):
-        return image.imread(path)
+        try:
+            return image.imread(path)
+        except Exception as e:
+            raise ImageReadingError(e)
 
 
 class TianchiOCRLabelReader(object):
     def __call__(self, path):
         with open(path, 'rb') as f:
-            label = np.array([l.strip().decode('utf-8').split(',') for l in f.readlines()])
+            label = [l.strip().decode('utf-8').split(',') for l in f.readlines()]
+            label = [l[:8] + (l[8:] if len(l) <= 9 else [''.join(l[8:])]) for l in label]
+            label = np.array(label)
         return np.array(label[:, :-1], dtype=np.float_), np.array(label[:, -1])
 
 
@@ -78,6 +90,13 @@ class TianchiOCRDataLoader(gluon.data.DataLoader):
     def __iter__(self):
         if self._num_workers == 0:
             for idx in self._batch_sampler:
-                im, label = self._dataset[idx[0]]  # batch_size is fixed to be 1, so we can directly use idx[0].
+                try:
+                    im, label = self._dataset[idx[0]]  # batch_size is fixed to be 1, so we can directly use idx[0].
+                except FileNotFoundError as e:
+                    logger.info('File not found during data loading phase. err_msg: {}'.format(e))
+                    continue
+                except ImageReadingError as e:
+                    logger.info('Error found when reading image. err_msg: {}'.format(e))
+                    continue
                 yield im, (nd.array(label[0], dtype=np.float32), label[1])
             return
