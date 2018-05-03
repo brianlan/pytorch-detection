@@ -1,6 +1,7 @@
 from pathlib import Path
 
 import cv2
+from PIL import Image
 import torch
 import numpy as np
 from torch.utils.data import DataLoader
@@ -15,7 +16,7 @@ class ImageReadingError(Exception):
 class ImageReader(object):
     def __call__(self, path):
         try:
-            return torch.from_numpy(cv2.cvtColor(cv2.imread(path), cv2.COLOR_BGR2RGB))
+            return Image.open(path)
         except Exception as e:
             raise ImageReadingError(e)
 
@@ -99,5 +100,5 @@ class TianchiOCRDataLoader(torch.utils.data.DataLoader):
                 except ImageReadingError as e:
                     logger.info('Error found when reading image. err_msg: {}'.format(e))
                     continue
-                yield im, (label[0], label[1])
+                yield im, label
             return

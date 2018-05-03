@@ -1,19 +1,33 @@
 import torch
+from torchvision.transforms import functional as F
 
 from src.dataset import TianchiOCRDataset, TianchiOCRDataLoader
 from src.fpn_densenet import FPNDenseNet
 from src.rpn import rpn_loss
 
 N_MAX_EPOCHS = 10
-dataset = TianchiOCRDataset('/Users/rlan/datasets/ICPR/train_1000/image_1000', '/Users/rlan/datasets/ICPR/train_1000/txt_1000')
+
+# dataset = TianchiOCRDataset('/Users/rlan/datasets/ICPR/train_1000/image_1000', '/Users/rlan/datasets/ICPR/train_1000/txt_1000')
+dataset = TianchiOCRDataset('/home/rlan/datasets/ICPR/train_1000/image_1000', '/home/rlan/datasets/ICPR/train_1000/txt_1000')
 loader = TianchiOCRDataLoader(dataset, shuffle=False)
+
 net = FPNDenseNet()
+if torch.cuda.is_available():
+    net = net.cuda()
+
 optimizer = torch.optim.Adam(net.parameters(), lr=1e-4)
 
 for epoch in range(N_MAX_EPOCHS):
     for im, label in loader:
+        im = F.to_tensor(im).view(1, 3, *im.size)
+        gt_positions = torch.from_numpy(label[0])
+
+        if torch.cuda.is_available():
+            im = im.cuda()
+            gt_positions = gt_positions.cuda()
+
         rpn_proposals = net(im)
-        l = rpn_loss(rpn_proposals, label)
+        l = rpn_loss(rpn_proposals, gt_positions)
         optimizer.zero_grad()
         l.backward()
         optimizer.step()
