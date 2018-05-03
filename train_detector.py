@@ -1,15 +1,22 @@
-from mxnet import gluon
-from mxnet.gluon import nn
+import torch
 
 from src.dataset import TianchiOCRDataset, TianchiOCRDataLoader
+from src.fpn_densenet import FPNDenseNet
+from src.rpn import rpn_loss
 
 N_MAX_EPOCHS = 10
 dataset = TianchiOCRDataset('/Users/rlan/datasets/ICPR/train_1000/image_1000', '/Users/rlan/datasets/ICPR/train_1000/txt_1000')
 loader = TianchiOCRDataLoader(dataset, shuffle=False)
+net = FPNDenseNet()
+optimizer = torch.optim.Adam(net.parameters(), lr=1e-4)
 
 for epoch in range(N_MAX_EPOCHS):
     for im, label in loader:
-        pass
+        rpn_proposals = net(im)
+        l = rpn_loss(rpn_proposals, label)
+        optimizer.zero_grad()
+        l.backward()
+        optimizer.step()
 
 
 

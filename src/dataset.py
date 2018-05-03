@@ -1,8 +1,9 @@
 from pathlib import Path
 
 import cv2
+import torch
 import numpy as np
-from mxnet import gluon, image, nd
+from torch.utils.data import DataLoader
 
 from .logger import logger
 
@@ -14,7 +15,7 @@ class ImageReadingError(Exception):
 class ImageReader(object):
     def __call__(self, path):
         try:
-            return image.imread(path)
+            return torch.from_numpy(cv2.cvtColor(cv2.imread(path), cv2.COLOR_BGR2RGB))
         except Exception as e:
             raise ImageReadingError(e)
 
@@ -42,7 +43,7 @@ class DetectionDataPathIter(object):
                 str(self.label_dir / self.indices[idx]) + self.label_suffix
 
 
-class DetectionDataset(gluon.data.Dataset):
+class DetectionDataset(torch.utils.data.Dataset):
     @property
     def data_path_iter(self):
         raise NotImplementedError
@@ -83,20 +84,20 @@ class TianchiOCRDataset(DetectionDataset):
         return self._label_reader
 
 
-class TianchiOCRDataLoader(gluon.data.DataLoader):
+class TianchiOCRDataLoader(torch.utils.data.DataLoader):
     def __init__(self, dataset, shuffle=False, num_workers=0):
         super().__init__(dataset, batch_size=1, shuffle=shuffle, num_workers=num_workers)
 
     def __iter__(self):
-        if self._num_workers == 0:
-            for idx in self._batch_sampler:
+        if self.num_workers == 0:
+            for idx in self.batch_sampler:
                 try:
-                    im, label = self._dataset[idx[0]]  # batch_size is fixed to be 1, so we can directly use idx[0].
+                    im, label = self.dataset[idx[0]]  # batch_size is fixed to be 1, so we can directly use idx[0].
                 except FileNotFoundError as e:
                     logger.info('File not found during data loading phase. err_msg: {}'.format(e))
                     continue
                 except ImageReadingError as e:
                     logger.info('Error found when reading image. err_msg: {}'.format(e))
                     continue
-                yield im, (nd.array(label[0], dtype=np.float32), label[1])
+                yield im, (label[0], label[1])
             return
