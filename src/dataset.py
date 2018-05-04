@@ -66,12 +66,19 @@ class DetectionDataset(torch.utils.data.Dataset):
 
 
 class TianchiOCRDataset(DetectionDataset):
-    def __init__(self, im_dir, label_dir, indices=None):
+    def __init__(self, im_dir, label_dir, transforms=None, indices=None):
         super().__init__()
         self._data_path_iter = DetectionDataPathIter(im_dir, '.jpg', label_dir, '.txt', indices=indices)
         self._im_reader = ImageReader()
         self._label_reader = TianchiOCRLabelReader()
-    
+        self.transforms = transforms
+
+    def __getitem__(self, idx):
+        im, label = super().__getitem__(idx)
+        for transform in self.transforms or []:
+            im, label = transform(im, label)
+        return im, label
+
     @property
     def data_path_iter(self):
         return self._data_path_iter
