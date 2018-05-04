@@ -85,23 +85,18 @@ class FPNDenseNet(nn.Module):
         # Establish FPN Structure
         n_fpn_channels = self.dense1.n_out_features
         self.fpn1_conv = nn.Conv2d(self.dense1.n_out_features, n_fpn_channels, kernel_size=3)
-        self.fpn1_cls = nn.Conv2d(n_fpn_channels, 3 * 2, 1)
-        self.fpn1_reg = nn.Conv2d(n_fpn_channels, 3 * 8, 1)
 
         self.fpn2_conv = nn.Conv2d(self.dense2.n_out_features, n_fpn_channels, kernel_size=3)
         self.fpn2_up = nn.ConvTranspose2d(self.dense2.n_out_features, self.dense1.n_out_features, kernel_size=1)
-        self.fpn2_cls = nn.Conv2d(n_fpn_channels, 3 * 2, 1)
-        self.fpn2_reg = nn.Conv2d(n_fpn_channels, 3 * 8, 1)
 
         self.fpn3_conv = nn.Conv2d(self.dense3.n_out_features, n_fpn_channels, kernel_size=3)
         self.fpn3_up = nn.ConvTranspose2d(self.dense3.n_out_features, self.dense2.n_out_features, kernel_size=1)
-        self.fpn3_cls = nn.Conv2d(n_fpn_channels, 3 * 2, 1)
-        self.fpn3_reg = nn.Conv2d(n_fpn_channels, 3 * 8, 1)
 
         self.fpn4_conv = nn.Conv2d(self.dense4.n_out_features, n_fpn_channels, kernel_size=3)
         self.fpn4_up = nn.ConvTranspose2d(self.dense4.n_out_features, self.dense3.n_out_features, kernel_size=1, stride=2)
-        self.fpn4_cls = nn.Conv2d(n_fpn_channels, 3 * 2, 1)
-        self.fpn4_reg = nn.Conv2d(n_fpn_channels, 3 * 8, 1)
+
+        self.head_cls = nn.Conv2d(n_fpn_channels, 3 * 2, 1)
+        self.head_reg = nn.Conv2d(n_fpn_channels, 3 * 8, 1)
 
         # weights / bias initialization
         for m in self.modules():
@@ -126,13 +121,13 @@ class FPNDenseNet(nn.Module):
         fpn2 = self.fpn2_conv(self.fpn3_up(dense3) + dense2)
         fpn1 = self.fpn1_conv(self.fpn2_up(dense2) + dense1)
 
-        fpn4_cls = self.fpn4_cls(fpn4)
-        fpn4_reg = self.fpn4_reg(fpn4)
-        fpn3_cls = self.fpn3_cls(fpn3)
-        fpn3_reg = self.fpn3_reg(fpn3)
-        fpn2_cls = self.fpn2_cls(fpn2)
-        fpn2_reg = self.fpn2_reg(fpn2)
-        fpn1_cls = self.fpn1_cls(fpn1)
-        fpn1_reg = self.fpn1_reg(fpn1)
+        fpn4_cls = self.head_cls(fpn4)
+        fpn4_reg = self.head_reg(fpn4)
+        fpn3_cls = self.head_cls(fpn3)
+        fpn3_reg = self.head_reg(fpn3)
+        fpn2_cls = self.head_cls(fpn2)
+        fpn2_reg = self.head_reg(fpn2)
+        fpn1_cls = self.head_cls(fpn1)
+        fpn1_reg = self.head_reg(fpn1)
 
         return fpn1_cls, fpn1_reg, fpn2_cls, fpn2_reg, fpn3_cls, fpn3_reg, fpn4_cls, fpn4_reg
