@@ -8,6 +8,15 @@ from tqdm import tqdm
 from src.dataset import TianchiOCRDataset, TianchiOCRDataLoader
 
 
+def norm(v):
+    return np.sqrt((v * v).sum())
+
+
+def calc_quadrilateral_w_h_ratios(q):
+    w, h = np.abs(q[:, 4] - q[:, 0]), np.abs(q[:, 5] - q[:, 1])
+    return w / (h + 1e-7)
+
+
 # im_dir = Path('/Users/rlan/datasets/ICPR/train_1000/image_1000')
 # label_dir = Path('/Users/rlan/datasets/ICPR/train_1000/txt_1000')
 im_dir = Path('/home/rlan/datasets/ICPR/train_1000/image_1000')
@@ -16,8 +25,9 @@ dataset = TianchiOCRDataset(str(im_dir), str(label_dir))
 loader = TianchiOCRDataLoader(dataset, shuffle=False)
 save_dir = Path('/tmp/icpr')
 im_shapes = []
-
+w_h_ratios = []
 for label_path, (im, label) in tqdm(zip(label_dir.glob('**/*.txt'), loader)):
+    w_h_ratios.extend(calc_quadrilateral_w_h_ratios(label[0]).tolist())
     rel_path = label_path.relative_to(label_dir)
     save_path = (save_dir / rel_path).with_suffix('.png')
     save_path.parent.mkdir(parents=True, exist_ok=True)

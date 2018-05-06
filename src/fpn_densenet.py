@@ -84,16 +84,22 @@ class FPNDenseNet(nn.Module):
 
         # Establish FPN Structure
         n_fpn_channels = self.dense1.n_out_features
-        self.fpn1_conv = nn.Conv2d(self.dense1.n_out_features, n_fpn_channels, kernel_size=3)
 
-        self.fpn2_conv = nn.Conv2d(self.dense2.n_out_features, n_fpn_channels, kernel_size=3)
-        self.fpn2_up = nn.ConvTranspose2d(self.dense2.n_out_features, self.dense1.n_out_features, kernel_size=1)
+        self.dense1_lateral = nn.Conv2d(self.dense1.n_out_features, self.dense2.n_out_features, kernel_size=1)
+        self.dense2_lateral = nn.Conv2d(self.dense2.n_out_features, self.dense3.n_out_features, kernel_size=1)
+        self.dense3_lateral = nn.Conv2d(self.dense3.n_out_features, self.dense4.n_out_features, kernel_size=1)
 
-        self.fpn3_conv = nn.Conv2d(self.dense3.n_out_features, n_fpn_channels, kernel_size=3)
-        self.fpn3_up = nn.ConvTranspose2d(self.dense3.n_out_features, self.dense2.n_out_features, kernel_size=1)
+        self.fpn2_up = nn.ConvTranspose2d(self.dense2.n_out_features, self.dense2.n_out_features, kernel_size=3,
+                                          stride=2, padding=1, output_padding=1)
+        self.fpn3_up = nn.ConvTranspose2d(self.dense3.n_out_features, self.dense3.n_out_features, kernel_size=3,
+                                          stride=2, padding=1, output_padding=1)
+        self.fpn4_up = nn.ConvTranspose2d(self.dense4.n_out_features, self.dense4.n_out_features, kernel_size=3,
+                                          stride=2, padding=1, output_padding=1)
 
-        self.fpn4_conv = nn.Conv2d(self.dense4.n_out_features, n_fpn_channels, kernel_size=3)
-        self.fpn4_up = nn.ConvTranspose2d(self.dense4.n_out_features, self.dense3.n_out_features, kernel_size=1, stride=2)
+        self.fpn1_conv = nn.Conv2d(self.dense2.n_out_features, n_fpn_channels, kernel_size=3, padding=1)
+        self.fpn2_conv = nn.Conv2d(self.dense3.n_out_features, n_fpn_channels, kernel_size=3, padding=1)
+        self.fpn3_conv = nn.Conv2d(self.dense4.n_out_features, n_fpn_channels, kernel_size=3, padding=1)
+        self.fpn4_conv = nn.Conv2d(self.dense4.n_out_features, n_fpn_channels, kernel_size=3, padding=1)
 
         self.head_cls = nn.Conv2d(n_fpn_channels, 3 * 2, 1)
         self.head_reg = nn.Conv2d(n_fpn_channels, 3 * 8, 1)
@@ -117,9 +123,9 @@ class FPNDenseNet(nn.Module):
         dense4 = self.dense4_bn(self.dense4(x))
 
         fpn4 = self.fpn4_conv(dense4)
-        fpn3 = self.fpn3_conv(self.fpn4_up(dense4) + dense3)
-        fpn2 = self.fpn2_conv(self.fpn3_up(dense3) + dense2)
-        fpn1 = self.fpn1_conv(self.fpn2_up(dense2) + dense1)
+        fpn3 = self.fpn3_conv(self.fpn4_up(dense4) + self.dense3_lateral(dense3))
+        fpn2 = self.fpn2_conv(self.fpn3_up(dense3) + self.dense2_lateral(dense2))
+        fpn1 = self.fpn1_conv(self.fpn2_up(dense2) + self.dense1_lateral(dense1))
 
         fpn4_cls = self.head_cls(fpn4)
         fpn4_reg = self.head_reg(fpn4)

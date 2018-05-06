@@ -1,7 +1,7 @@
 import torch
 from torchvision.transforms import functional as F
 
-from src.transform import TianchiOCRDynamicResize
+from src.transform import TianchiOCRDynamicResize, TianchiOCRClip
 from src.dataset import TianchiOCRDataset, TianchiOCRDataLoader
 from src.fpn_densenet import FPNDenseNet
 from src.rpn import rpn_loss
@@ -9,7 +9,7 @@ from src.rpn import rpn_loss
 N_MAX_EPOCHS = 10
 
 # dataset = TianchiOCRDataset('/Users/rlan/datasets/ICPR/train_1000/image_1000', '/Users/rlan/datasets/ICPR/train_1000/txt_1000')
-transforms = [TianchiOCRDynamicResize(divisible_by=32)]
+transforms = [TianchiOCRDynamicResize(divisible_by=32), TianchiOCRClip()]
 dataset = TianchiOCRDataset('/home/rlan/datasets/ICPR/train_1000/image_1000',
                             '/home/rlan/datasets/ICPR/train_1000/txt_1000',
                             transforms=transforms)

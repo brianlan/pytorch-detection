@@ -1,5 +1,6 @@
 from math import ceil
 
+import numpy as np
 import torchvision.transforms.functional as F
 
 
@@ -18,3 +19,10 @@ class TianchiOCRDynamicResize(object):
                 label[0][:, ::2] *= new_size / size[0]
                 label[0][:, 1::2] *= new_size / size[1]
                 return img, label
+
+
+class TianchiOCRClip(object):
+    def __call__(self, img, label):
+        label[0][:, ::2] = np.minimum(np.maximum(label[0][:, ::2], 0), img.size[0] - 1)
+        label[0][:, 1::2] = np.minimum(np.maximum(label[0][:, ::2], 0), img.size[1] - 1)
+        return img, label
