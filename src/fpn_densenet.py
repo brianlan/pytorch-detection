@@ -55,6 +55,8 @@ class FPNDenseNet(nn.Module):
                  num_init_features=64, bn_size=4, drop_rate=0):
         super(FPNDenseNet, self).__init__()
 
+        self.fpn1 = self.fpn2 = self.fpn3 = self.fpn4 = None
+
         # First convolution
         self.pre_conv = nn.Sequential(OrderedDict([
             ('conv0', nn.Conv2d(3, num_init_features, kernel_size=7, stride=1, padding=3, bias=False)),
@@ -125,19 +127,19 @@ class FPNDenseNet(nn.Module):
         x = self.trans3(x)
         dense4 = self.dense4_bn(self.dense4(x))
 
-        fpn4 = self.fpn4_conv(dense4)
-        fpn3 = self.fpn3_conv(self.fpn4_up(dense4) + self.dense3_lateral(dense3))
-        fpn2 = self.fpn2_conv(self.fpn3_up(dense3) + self.dense2_lateral(dense2))
-        fpn1 = self.fpn1_conv(self.fpn2_up(dense2) + self.dense1_lateral(dense1))
+        self.fpn4 = self.fpn4_conv(dense4)
+        self.fpn3 = self.fpn3_conv(self.fpn4_up(dense4) + self.dense3_lateral(dense3))
+        self.fpn2 = self.fpn2_conv(self.fpn3_up(dense3) + self.dense2_lateral(dense2))
+        self.fpn1 = self.fpn1_conv(self.fpn2_up(dense2) + self.dense1_lateral(dense1))
 
-        fpn4_cls = self.head_cls(fpn4)
-        fpn4_reg = self.head_reg(fpn4)
-        fpn3_cls = self.head_cls(fpn3)
-        fpn3_reg = self.head_reg(fpn3)
-        fpn2_cls = self.head_cls(fpn2)
-        fpn2_reg = self.head_reg(fpn2)
-        fpn1_cls = self.head_cls(fpn1)
-        fpn1_reg = self.head_reg(fpn1)
+        fpn4_cls = self.head_cls(self.fpn4)
+        fpn4_reg = self.head_reg(self.fpn4)
+        fpn3_cls = self.head_cls(self.fpn3)
+        fpn3_reg = self.head_reg(self.fpn3)
+        fpn2_cls = self.head_cls(self.fpn2)
+        fpn2_reg = self.head_reg(self.fpn2)
+        fpn1_cls = self.head_cls(self.fpn1)
+        fpn1_reg = self.head_reg(self.fpn1)
 
         return (fpn1_cls, fpn1_reg), (fpn2_cls, fpn2_reg), (fpn3_cls, fpn3_reg), (fpn4_cls, fpn4_reg)
 

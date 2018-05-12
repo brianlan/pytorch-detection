@@ -5,6 +5,7 @@ from src.transform import TianchiOCRDynamicResize, TianchiOCRClip
 from src.dataset import TianchiOCRDataset, TianchiOCRDataLoader
 from src.fpn_densenet import FPNDenseNet
 from src.rpn import RPNLoss
+from src.config import RPN_ANCHOR_SCALES, RPN_ANCHOR_RATIOS
 
 N_MAX_EPOCHS = 10
 
@@ -20,7 +21,6 @@ if torch.cuda.is_available():
     net = net.cuda()
 
 optimizer = torch.optim.Adam(net.parameters(), lr=1e-4)
-rpn_loss = RPNLoss()
 
 for epoch in range(N_MAX_EPOCHS):
     for im, label in loader:
@@ -32,32 +32,12 @@ for epoch in range(N_MAX_EPOCHS):
             gt_positions = gt_positions.cuda()
 
         rpn_proposals = net(im)
-        l = rpn_loss(rpn_proposals, gt_positions)
         optimizer.zero_grad()
-        l.backward()
+
+        fpn_fmap_shapes = [net.fpn1.shape, net.fpn2.shape, net.fpn3.shape, net.fpn4.shape]
+        for p, shape, scale in zip(rpn_proposals, fpn_fmap_shapes, RPN_ANCHOR_SCALES):
+            downsampled_rate = shape / im.shape
+            cls_loss, bbox_loss = RPNLoss(shape, downsampled_rate, [scale], RPN_ANCHOR_RATIOS)(p, gt_positions)
+            cls_loss.backward()
+            bbox_loss.backward()
         optimizer.step()
-
-
-
-# net = nn.Sequential()
-# with net.name_scope():
-#     net.add(
-#         nn.Conv2D(channels=20, kernel_size=5, activation='relu'),
-#         nn.MaxPool2D(pool_size=2, strides=2),
-#         nn.Conv2D(channels=50, kernel_size=3, activation='relu'),
-#         nn.MaxPool2D(pool_size=2, strides=2),
-#         nn.Flatten(),
-#         nn.Dense(128, activation="relu"),
-#         nn.Dense(10)
-#     )
-
-# iterator = ImageDetIter(1, (3, 600, 600), path_imgrec='data/pikachu/train.rec')
-# for data in iterator:
-#     pass
-
-# for image in iterator.draw_next(waitKey=None):
-#     pass
-
-# # or let draw_next display using cv2 module
-# for image in iterator.draw_next(waitKey=0, window_name='disp'):
-#     pass
