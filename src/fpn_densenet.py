@@ -3,6 +3,7 @@ from collections import OrderedDict
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import attr
 
 # from torchvision.models.densenet import _DenseBlock, _Transition
 
@@ -52,7 +53,6 @@ class _Transition(nn.Sequential):
 class FPNDenseNet(nn.Module):
     def __init__(self, growth_rate=32, block_config=(6, 12, 24, 16),
                  num_init_features=64, bn_size=4, drop_rate=0):
-
         super(FPNDenseNet, self).__init__()
 
         # First convolution
@@ -80,6 +80,9 @@ class FPNDenseNet(nn.Module):
                                   bn_size=bn_size, growth_rate=growth_rate, drop_rate=drop_rate)
 
         # Final batch norm
+        self.dense1_bn = nn.BatchNorm2d(self.dense1.n_out_features)
+        self.dense2_bn = nn.BatchNorm2d(self.dense2.n_out_features)
+        self.dense3_bn = nn.BatchNorm2d(self.dense3.n_out_features)
         self.dense4_bn = nn.BatchNorm2d(self.dense4.n_out_features)
 
         # Establish FPN Structure
@@ -114,11 +117,11 @@ class FPNDenseNet(nn.Module):
 
     def forward(self, x):
         x = self.pre_conv(x)
-        x = dense1 = self.dense1(x)
+        x = dense1 = self.dense1_bn(self.dense1(x))
         x = self.trans1(x)
-        x = dense2 = self.dense2(x)
+        x = dense2 = self.dense2_bn(self.dense2(x))
         x = self.trans2(x)
-        x = dense3 = self.dense3(x)
+        x = dense3 = self.dense3_bn(self.dense3(x))
         x = self.trans3(x)
         dense4 = self.dense4_bn(self.dense4(x))
 
@@ -136,4 +139,5 @@ class FPNDenseNet(nn.Module):
         fpn1_cls = self.head_cls(fpn1)
         fpn1_reg = self.head_reg(fpn1)
 
-        return fpn1_cls, fpn1_reg, fpn2_cls, fpn2_reg, fpn3_cls, fpn3_reg, fpn4_cls, fpn4_reg
+        return (fpn1_cls, fpn1_reg), (fpn2_cls, fpn2_reg), (fpn3_cls, fpn3_reg), (fpn4_cls, fpn4_reg)
+

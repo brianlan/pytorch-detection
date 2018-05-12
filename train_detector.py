@@ -4,7 +4,7 @@ from torchvision.transforms import functional as F
 from src.transform import TianchiOCRDynamicResize, TianchiOCRClip
 from src.dataset import TianchiOCRDataset, TianchiOCRDataLoader
 from src.fpn_densenet import FPNDenseNet
-from src.rpn import rpn_loss
+from src.rpn import RPNLoss
 
 N_MAX_EPOCHS = 10
 
@@ -20,6 +20,7 @@ if torch.cuda.is_available():
     net = net.cuda()
 
 optimizer = torch.optim.Adam(net.parameters(), lr=1e-4)
+rpn_loss = RPNLoss()
 
 for epoch in range(N_MAX_EPOCHS):
     for im, label in loader:

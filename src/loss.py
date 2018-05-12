@@ -22,3 +22,11 @@ class SmoothL1Loss(gluon.loss.Loss):
     def hybrid_forward(self, F, output, label, mask):
         loss = F.smooth_l1((output - label) * mask, scalar=1.0)
         return loss.mean(self._batch_axis, exclude=True)
+
+
+def softmax_loss(pred, label):
+    pass
+
+
+def smooth_l1_loss(pred, label):
+    pass
