@@ -1,5 +1,6 @@
 import attr
 import numpy as np
+import torch
 
 
 @attr.s
@@ -45,37 +46,35 @@ class AnchorGenerator(object):
 
 
 def calc_overlap(query_boxes, ref_boxes):
-    query_areas = (query_boxes[:, 2] - query_boxes[:, 0] + 1) * (query_boxes[:, 3] - query_boxes[:, 1] + 1)
-    ref_areas = (ref_boxes[:, 2] - ref_boxes[:, 0]) * (ref_boxes[:, 3] - ref_boxes[:, 1])
+    n_queries, n_refs = query_boxes.shape[0], ref_boxes.shape[0]
 
-    # Compute overlaps to generate matrix [query_boxes count, ref_boxes count]
-    # Each cell contains the IoU value.
-    overlaps = np.zeros((query_boxes.shape[0], ref_boxes.shape[0]))
-    for i in range(overlaps.shape[1]):
-        box2 = ref_boxes[i]
-        overlaps[:, i] = calc_iou(box2, query_boxes, ref_areas[i], query_areas)
+    q_xmin = query_boxes[:, 0].view(-1, 1).repeat(1, n_refs)
+    q_ymin = query_boxes[:, 1].view(-1, 1).repeat(1, n_refs)
+    q_xmax = query_boxes[:, 2].view(-1, 1).repeat(1, n_refs)
+    q_ymax = query_boxes[:, 3].view(-1, 1).repeat(1, n_refs)
+
+    r_xmin = ref_boxes[:, 0].view(1, -1).repeat(n_queries, 1)
+    r_ymin = ref_boxes[:, 1].view(1, -1).repeat(n_queries, 1)
+    r_xmax = ref_boxes[:, 2].view(1, -1).repeat(n_queries, 1)
+    r_ymax = ref_boxes[:, 3].view(1, -1).repeat(n_queries, 1)
+
+    intersect_left = torch.max(q_xmin, r_xmin)
+    intersect_top = torch.max(q_ymin, r_ymin)
+    intersect_right = torch.min(q_xmax, r_xmax)
+    intersect_bottom = torch.min(q_ymax, r_ymax)
+
+    intersect_areas = torch.max(torch.Tensor([0]), intersect_right - intersect_left + 1) * \
+                      torch.max(torch.Tensor([0]), intersect_bottom - intersect_top + 1)
+
+    query_areas = ((query_boxes[:, 2] - query_boxes[:, 0] + 1) * (query_boxes[:, 3] - query_boxes[:, 1] + 1)) \
+        .view(-1, 1) \
+        .repeat(1, n_refs)
+    ref_areas = ((ref_boxes[:, 2] - ref_boxes[:, 0] + 1) * (ref_boxes[:, 3] - ref_boxes[:, 1] + 1)) \
+        .view(1, -1) \
+        .repeat(n_queries, 1)
+
+    overlaps = intersect_areas / (query_areas + ref_areas - intersect_areas)
     return overlaps
-
-
-def calc_iou(box, boxes, box_area, boxes_area):
-    """Calculates IoU of the given box with the array of the given boxes.
-        box: 1D vector [y1, x1, y2, x2]
-        boxes: [boxes_count, (y1, x1, y2, x2)]
-        box_area: float. the area of 'box'
-        boxes_area: array of length boxes_count.
-
-        Note: the areas are passed in rather than calculated here for
-              efficency. Calculate once in the caller to avoid duplicate work.
-        """
-    # Calculate intersection areas
-    y1 = np.maximum(box[0], boxes[:, 0])
-    y2 = np.minimum(box[2], boxes[:, 2])
-    x1 = np.maximum(box[1], boxes[:, 1])
-    x2 = np.minimum(box[3], boxes[:, 3])
-    intersection = np.maximum(x2 - x1, 0) * np.maximum(y2 - y1, 0)
-    union = box_area + boxes_area[:] - intersection[:]
-    iou = intersection / union
-    return iou
 
 
 def calc_anchor_match(anchors, gt_boxes, fmap_downsampled_rate):
