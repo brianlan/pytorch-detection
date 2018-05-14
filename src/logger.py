@@ -5,7 +5,7 @@ import datetime
 
 LOG_DIR = 'log'
 LOG_LEVEL = os.environ.get('LOG_LEVEL') or 'INFO'
-logger = logging.getLogger('gluon-detection')
+logger = logging.getLogger('pytorch-detection')
 logger.setLevel(LOG_LEVEL)
 fh = logging.FileHandler(os.path.sep.join([
     LOG_DIR if os.path.isdir(LOG_DIR) and os.access(LOG_DIR, os.W_OK) else '/tmp',

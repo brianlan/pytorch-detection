@@ -101,6 +101,7 @@ class TianchiOCRDataLoader(torch.utils.data.DataLoader):
             for idx in self.batch_sampler:
                 try:
                     im, label = self.dataset[idx[0]]  # batch_size is fixed to be 1, so we can directly use idx[0].
+                    label = (label[0].astype(np.float32), label[1])
                 except FileNotFoundError as e:
                     logger.info('File not found during data loading phase. err_msg: {}'.format(e))
                     continue

@@ -1,4 +1,5 @@
 import attr
+import torch
 import torch.nn as nn
 import numpy as np
 
@@ -13,9 +14,13 @@ class RPNLoss(nn.Module):
     scales = attr.ib()
     ratios = attr.ib()
 
+    def __attrs_post_init__(self):
+        super().__init__()
+
     def forward(self, proposals, gt_boxes):
         anchors = AnchorGenerator.generate_anchors(self.fmap_shape, self.fmap_downsampled_rate, self.scales,
                                                    self.ratios)
+        anchors = torch.Tensor(anchors).cuda() if gt_boxes.is_cuda else torch.Tensor(anchors)
         matches, assigned_gt_bbox = calc_anchor_match(anchors, gt_boxes, self.fmap_downsampled_rate)
         pos_sample_idx = matches[matches == 1]
         neg_sample_idx = matches[matches == 0]

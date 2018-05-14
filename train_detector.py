@@ -35,9 +35,11 @@ for epoch in range(N_MAX_EPOCHS):
         optimizer.zero_grad()
 
         fpn_fmap_shapes = [net.fpn1.shape, net.fpn2.shape, net.fpn3.shape, net.fpn4.shape]
-        for p, shape, scale in zip(rpn_proposals, fpn_fmap_shapes, RPN_ANCHOR_SCALES):
-            downsampled_rate = shape / im.shape
-            cls_loss, bbox_loss = RPNLoss(shape, downsampled_rate, [scale], RPN_ANCHOR_RATIOS)(p, gt_positions)
+        for p, fmap_shape, scale in zip(rpn_proposals, fpn_fmap_shapes, RPN_ANCHOR_SCALES):
+            downsampled_rate = [f / r for f, r in zip(fmap_shape, im.shape)]
+            assert downsampled_rate[2] == downsampled_rate[3]
+            rpn_loss = RPNLoss(fmap_shape[2:], downsampled_rate[3], [scale], RPN_ANCHOR_RATIOS)
+            cls_loss, bbox_loss = rpn_loss(p, gt_positions)
             cls_loss.backward()
             bbox_loss.backward()
         optimizer.step()

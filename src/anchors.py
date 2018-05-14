@@ -2,6 +2,8 @@ import attr
 import numpy as np
 import torch
 
+from logger import logger
+
 
 @attr.s
 class AnchorGenerator(object):
@@ -63,8 +65,13 @@ def calc_overlap(query_boxes, ref_boxes):
     intersect_right = torch.min(q_xmax, r_xmax)
     intersect_bottom = torch.min(q_ymax, r_ymax)
 
-    intersect_areas = torch.max(torch.Tensor([0]), intersect_right - intersect_left + 1) * \
-                      torch.max(torch.Tensor([0]), intersect_bottom - intersect_top + 1)
+    try:
+        intersect_areas = torch.max(torch.Tensor([0]), intersect_right - intersect_left + 1) * \
+                          torch.max(torch.Tensor([0]), intersect_bottom - intersect_top + 1)
+    except RuntimeError as e:
+        intersect_areas = torch.max(torch.Tensor([0]).cuda(), intersect_right - intersect_left + 1) * \
+                          torch.max(torch.Tensor([0]).cuda(), intersect_bottom - intersect_top + 1)
+        logger.info('err_msg: {}'.format(e))
 
     query_areas = ((query_boxes[:, 2] - query_boxes[:, 0] + 1) * (query_boxes[:, 3] - query_boxes[:, 1] + 1)) \
         .view(-1, 1) \
