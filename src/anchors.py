@@ -44,8 +44,43 @@ class AnchorGenerator(object):
         return boxes
 
 
-def calc_anchor_match(anchors, gt_boxes):
-    pass
+def calc_overlap(query_boxes, ref_boxes):
+    query_areas = (query_boxes[:, 2] - query_boxes[:, 0] + 1) * (query_boxes[:, 3] - query_boxes[:, 1] + 1)
+    ref_areas = (ref_boxes[:, 2] - ref_boxes[:, 0]) * (ref_boxes[:, 3] - ref_boxes[:, 1])
+
+    # Compute overlaps to generate matrix [query_boxes count, ref_boxes count]
+    # Each cell contains the IoU value.
+    overlaps = np.zeros((query_boxes.shape[0], ref_boxes.shape[0]))
+    for i in range(overlaps.shape[1]):
+        box2 = ref_boxes[i]
+        overlaps[:, i] = calc_iou(box2, query_boxes, ref_areas[i], query_areas)
+    return overlaps
+
+
+def calc_iou(box, boxes, box_area, boxes_area):
+    """Calculates IoU of the given box with the array of the given boxes.
+        box: 1D vector [y1, x1, y2, x2]
+        boxes: [boxes_count, (y1, x1, y2, x2)]
+        box_area: float. the area of 'box'
+        boxes_area: array of length boxes_count.
+
+        Note: the areas are passed in rather than calculated here for
+              efficency. Calculate once in the caller to avoid duplicate work.
+        """
+    # Calculate intersection areas
+    y1 = np.maximum(box[0], boxes[:, 0])
+    y2 = np.minimum(box[2], boxes[:, 2])
+    x1 = np.maximum(box[1], boxes[:, 1])
+    x2 = np.minimum(box[3], boxes[:, 3])
+    intersection = np.maximum(x2 - x1, 0) * np.maximum(y2 - y1, 0)
+    union = box_area + boxes_area[:] - intersection[:]
+    iou = intersection / union
+    return iou
+
+
+def calc_anchor_match(anchors, gt_boxes, fmap_downsampled_rate):
+    gt_boxes = gt_boxes * fmap_downsampled_rate
+    overlaps = calc_overlap(anchors, gt_boxes)
 
 
 def get_delta(from_boxes, to_boxes):

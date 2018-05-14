@@ -16,7 +16,7 @@ class RPNLoss(nn.Module):
     def forward(self, proposals, gt_boxes):
         anchors = AnchorGenerator.generate_anchors(self.fmap_shape, self.fmap_downsampled_rate, self.scales,
                                                    self.ratios)
-        matches, assigned_gt_bbox = calc_anchor_match(anchors, gt_boxes)
+        matches, assigned_gt_bbox = calc_anchor_match(anchors, gt_boxes, self.fmap_downsampled_rate)
         pos_sample_idx = matches[matches == 1]
         neg_sample_idx = matches[matches == 0]
         pred_cls, pred_bboxes = proposals
