@@ -26,3 +26,13 @@ class TianchiOCRClip(object):
         label[0][:, ::2] = np.minimum(np.maximum(label[0][:, ::2], 0), img.size[0] - 1)
         label[0][:, 1::2] = np.minimum(np.maximum(label[0][:, ::2], 0), img.size[1] - 1)
         return img, label
+
+
+class TianchiPolygonsToBBoxes(object):
+    def __call__(self, img, label):
+        xmin = label[0][:, ::2].min(axis=1).reshape(-1, 1)
+        ymin = label[0][:, 1::2].min(axis=1).reshape(-1, 1)
+        xmax = label[0][:, ::2].max(axis=1).reshape(-1, 1)
+        ymax = label[0][:, 1::2].max(axis=1).reshape(-1, 1)
+        bboxes = np.hstack((xmin, ymin, xmax, ymax))
+        return img, (bboxes, label[1])

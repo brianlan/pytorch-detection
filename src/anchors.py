@@ -84,9 +84,26 @@ def calc_overlap(query_boxes, ref_boxes):
     return overlaps
 
 
-def calc_anchor_match(anchors, gt_boxes, fmap_downsampled_rate):
+def calc_anchor_match(anchors, gt_boxes, fmap_downsampled_rate, match_thresh_hi=.7, match_thresh_lo=.3):
+    # TODO: handle the case where gt_boxes is empty
     gt_boxes = gt_boxes * fmap_downsampled_rate
     overlaps = calc_overlap(anchors, gt_boxes)
+    max_ious_with_gt, assigned_gt_idx = overlaps.max(dim=1)
+    assigned_gt_boxes = gt_boxes[assigned_gt_idx]
+
+    idx_closest_to_gt = overlaps.argmax(dim=0)
+    anchor_idx = torch.arange(len(anchors), dtype=torch.long)
+    match = torch.ones(len(anchors)) * -1
+    if torch.cuda.is_available():
+        match = match.cuda()
+        anchor_idx = anchor_idx.cuda()
+    match[idx_closest_to_gt] = 1
+    match[max_ious_with_gt > match_thresh_hi] = 1
+    match[max_ious_with_gt < match_thresh_lo] = 0
+    pos_idx = anchor_idx[match == 1]
+    neg_idx = anchor_idx[match == 0]
+
+    return pos_idx, neg_idx, assigned_gt_boxes
 
 
 def get_delta(from_boxes, to_boxes):
