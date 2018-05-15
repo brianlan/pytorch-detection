@@ -107,6 +107,7 @@ class FPNDenseNet(nn.Module):
         self.fpn4_conv = nn.Conv2d(n_fpn_channels, n_fpn_channels, kernel_size=3, padding=1)
         self.fpn4_1x1 = nn.Conv2d(self.dense4.n_out_features, n_fpn_channels, kernel_size=1)
 
+        # TODO: make the num output in cls and reg head, i.e. anchor information, as param of __init__
         self.head_cls = nn.Conv2d(n_fpn_channels, 3 * 2, 1)
         self.head_reg = nn.Conv2d(n_fpn_channels, 3 * 8, 1)
 

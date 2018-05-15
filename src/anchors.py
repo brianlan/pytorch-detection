@@ -100,6 +100,7 @@ def calc_anchor_match(anchors, gt_boxes, fmap_downsampled_rate, match_thresh_hi=
     match[idx_closest_to_gt] = 1
     match[max_ious_with_gt > match_thresh_hi] = 1
     match[max_ious_with_gt < match_thresh_lo] = 0
+    # TODO: If multiple anchors have the same IoU match all of them
     pos_idx = anchor_idx[match == 1]
     neg_idx = anchor_idx[match == 0]
 
