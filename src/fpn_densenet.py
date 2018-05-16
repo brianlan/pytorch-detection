@@ -52,7 +52,7 @@ class _Transition(nn.Sequential):
 
 class FPNDenseNet(nn.Module):
     def __init__(self, growth_rate=32, block_config=(6, 12, 24, 16),
-                 num_init_features=64, bn_size=4, drop_rate=0):
+                 num_init_features=64, bn_size=4, drop_rate=0, num_ratios=3):
         super(FPNDenseNet, self).__init__()
 
         self.fpn1 = self.fpn2 = self.fpn3 = self.fpn4 = None
@@ -107,9 +107,8 @@ class FPNDenseNet(nn.Module):
         self.fpn4_conv = nn.Conv2d(n_fpn_channels, n_fpn_channels, kernel_size=3, padding=1)
         self.fpn4_1x1 = nn.Conv2d(self.dense4.n_out_features, n_fpn_channels, kernel_size=1)
 
-        # TODO: make the num output in cls and reg head, i.e. anchor information, as param of __init__
-        self.head_cls = nn.Conv2d(n_fpn_channels, 3 * 2, 1)
-        self.head_reg = nn.Conv2d(n_fpn_channels, 3 * 8, 1)
+        self.head_cls = nn.Conv2d(n_fpn_channels, num_ratios * 2, 1)
+        self.head_reg = nn.Conv2d(n_fpn_channels, num_ratios * 4, 1)
 
         # weights / bias initialization
         for m in self.modules():

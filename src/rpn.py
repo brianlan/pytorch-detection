@@ -35,8 +35,20 @@ class RPNLoss(nn.Module):
             neg_idx = neg_idx[torch.randperm(len(neg_idx))[:self.num_neg_samples]]
 
         pred_cls, pred_bboxes = proposals
-        cls_loss = softmax_loss(np.concatenate((pred_cls[pos_idx], pred_cls[neg_idx])),
-                                [1] * len(pos_idx) + [0] * len(neg_idx))
+        pred_cls = pred_cls\
+            .permute(2, 3, 1, 0)\
+            .contiguous()\
+            .view(pred_cls.shape[2] * pred_cls.shape[3] * pred_cls.shape[1] // 2, 2)
+        pred_bboxes = pred_bboxes\
+            .permute(2, 3, 1, 0)\
+            .contiguous()\
+            .view(pred_bboxes.shape[2] * pred_bboxes.shape[3] * pred_bboxes.shape[1] // 4, 4)
+
+        cls_label = torch.cat((torch.ones(len(pos_idx), dtype=torch.long), torch.zeros(len(neg_idx), dtype=torch.long)))
+
+        if torch.cuda.is_available():
+            cls_label = cls_label.cuda()
+        cls_loss = torch.nn.CrossEntropyLoss()(torch.cat((pred_cls[pos_idx], pred_cls[neg_idx])), cls_label)
         delta = get_delta(anchors[pos_idx], assigned_gt_bbox[pos_idx])
         bbox_loss = smooth_l1_loss(pred_bboxes[pos_idx], delta)
         return cls_loss, bbox_loss

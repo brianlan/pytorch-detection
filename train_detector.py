@@ -17,7 +17,7 @@ dataset = TianchiOCRDataset('/home/rlan/datasets/ICPR/train_1000/image_1000',
                             transforms=transforms)
 loader = TianchiOCRDataLoader(dataset, shuffle=False)
 
-net = FPNDenseNet()
+net = FPNDenseNet(num_ratios=len(RPN_ANCHOR_RATIOS))
 if torch.cuda.is_available():
     net = net.cuda()
 
