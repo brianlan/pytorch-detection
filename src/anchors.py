@@ -71,7 +71,7 @@ def calc_overlap(query_boxes, ref_boxes):
     except RuntimeError as e:
         intersect_areas = torch.max(torch.Tensor([0]).cuda(), intersect_right - intersect_left + 1) * \
                           torch.max(torch.Tensor([0]).cuda(), intersect_bottom - intersect_top + 1)
-        logger.info('err_msg: {}'.format(e))
+        logger.debug('err_msg: {}'.format(e))
 
     query_areas = ((query_boxes[:, 2] - query_boxes[:, 0] + 1) * (query_boxes[:, 3] - query_boxes[:, 1] + 1)) \
         .view(-1, 1) \
@@ -107,8 +107,22 @@ def calc_anchor_match(anchors, gt_boxes, fmap_downsampled_rate, match_thresh_hi=
     return pos_idx, neg_idx, assigned_gt_boxes
 
 
-def get_delta(from_boxes, to_boxes):
-    pass
+def calc_delta(boxes, ref_boxes, delta_std_dev):
+    ref_w = ref_boxes[:, 2] - ref_boxes[:, 0]
+    ref_h = ref_boxes[:, 3] - ref_boxes[:, 1]
+    ref_center_x = ref_boxes[:, 0] + 0.5 * ref_w
+    ref_center_y = ref_boxes[:, 1] + 0.5 * ref_h
+
+    w = boxes[:, 2] - boxes[:, 0]
+    h = boxes[:, 3] - boxes[:, 1]
+    center_x = boxes[:, 0] + 0.5 * w
+    center_y = boxes[:, 1] + 0.5 * h
+
+    delta = torch.cat(((ref_center_x - center_x) / w,
+                       (ref_center_y - center_y) / h,
+                       torch.log(ref_w / w),
+                       torch.log(ref_h / h))).view(*boxes.shape) / delta_std_dev
+    return delta
 
 
 def apply_delta(base_boxes, delta):

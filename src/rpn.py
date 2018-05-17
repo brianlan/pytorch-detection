@@ -1,10 +1,8 @@
 import attr
 import torch
 import torch.nn as nn
-import numpy as np
 
-from anchors import AnchorGenerator, calc_anchor_match, get_delta
-from loss import smooth_l1_loss, softmax_loss
+from anchors import AnchorGenerator, calc_anchor_match, calc_delta
 
 
 @attr.s
@@ -17,6 +15,7 @@ class RPNLoss(nn.Module):
     match_thresh_lo = attr.ib()
     num_pos_samples = attr.ib()
     num_neg_samples = attr.ib()
+    bbox_delta_std_dev = attr.ib()
 
     def __attrs_post_init__(self):
         super().__init__()
@@ -48,7 +47,13 @@ class RPNLoss(nn.Module):
 
         if torch.cuda.is_available():
             cls_label = cls_label.cuda()
+
         cls_loss = torch.nn.CrossEntropyLoss()(torch.cat((pred_cls[pos_idx], pred_cls[neg_idx])), cls_label)
-        delta = get_delta(anchors[pos_idx], assigned_gt_bbox[pos_idx])
-        bbox_loss = smooth_l1_loss(pred_bboxes[pos_idx], delta)
+
+        if len(pos_idx) > 0:
+            delta = calc_delta(anchors[pos_idx], assigned_gt_bbox[pos_idx], self.bbox_delta_std_dev)
+            bbox_loss = torch.nn.SmoothL1Loss()(pred_bboxes[pos_idx], delta)
+        else:
+            bbox_loss = torch.Tensor([0]).cuda() if torch.cuda.is_available() else torch.Tensor([0])
+
         return cls_loss, bbox_loss
